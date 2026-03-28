@@ -1,408 +1,495 @@
 "use client";
 
-import React from "react";
+import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Bell,
-  Clock,
-  MapPin,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  Truck,
-  Users,
-} from "lucide-react";
+import { donorListings, recipients, volunteers } from "../../data/network-seed";
+import { createAssignmentDecision } from "../../lib/matching";
+import { buildAssignmentMatrixNodes, selectMatrixAssignment } from "../../lib/matrix-assignment";
+import { computeRescueReadinessScore, foodSafetyScreen } from "../../lib/rescoring";
+import type {
+  CrisisState,
+  MatrixResult,
+  MultiStopPlan,
+  RouteLeg,
+  RoutingNotification,
+  VolunteerTask,
+} from "../../types/logistics";
+import { useOfflineDeliverySync } from "../../hooks/use-offline-delivery-sync";
+import SWRegister from "../components/sw-register";
 
-type Listing = {
-  title: string;
-  provider: string;
-  providerType: "individual" | "bulk";
-  quantity: string;
-  distance: string;
-  expiry: string;
-  price: string;
-  rating: number;
-  tags: string[];
+const LogisticsMap = dynamic(() => import("../components/logistics-map"), {
+  ssr: false,
+});
+
+const initialCrisis: CrisisState = {
+  active: false,
+  severity: "normal",
+  reason: "Normal operating conditions",
+  radiusMultiplier: 1,
 };
 
-const palette = {
-  primary: "#2d5a27",
-  secondary: "#f57c00",
-  tertiary: "#ffb300",
-  neutral: "#454745",
-};
-
-const liveListings: Listing[] = [
-  {
-    title: "Veg Biryani & Raita",
-    provider: "Home Cook | Lajpat",
-    providerType: "individual",
-    quantity: "6 plates",
-    distance: "0.8 km",
-    expiry: "1h left",
-    price: "Free pickup",
-    rating: 4.7,
-    tags: ["Veg", "Spice mild"],
-  },
-  {
-    title: "Catered Rice & Curry",
-    provider: "Event Kitchen | Okhla",
-    providerType: "bulk",
-    quantity: "40 portions",
-    distance: "3.2 km",
-    expiry: "2.5h left",
-    price: "₹45/plate (<=50%)",
-    rating: 4.8,
-    tags: ["Bulk", "NGO friendly"],
-  },
-  {
-    title: "Mixed Wraps + Salad",
-    provider: "Cafe Nova | Hauz Khas",
-    providerType: "individual",
-    quantity: "10 wraps",
-    distance: "1.6 km",
-    expiry: "50m left",
-    price: "Free pickup",
-    rating: 4.6,
-    tags: ["Veg", "Egg-free"],
-  },
+const initialTasks: VolunteerTask[] = [
+  { id: "t-1", listingId: "d-1", volunteerId: "v-1", status: "assigned", updatedAt: Date.now() },
+  { id: "t-2", listingId: "d-2", volunteerId: "v-3", status: "pending", updatedAt: Date.now() },
+  { id: "t-3", listingId: "d-3", volunteerId: "v-2", status: "picked", updatedAt: Date.now() },
 ];
 
-const safeguards = [
-  {
-    title: "50% price cap",
-    desc: "No listing can exceed half the market value—keeps the focus on rescue, not profit.",
-    icon: <ShieldCheck className="h-5 w-5" />,
-  },
-  {
-    title: "Short expiry only",
-    desc: "Every post needs a tight pickup window; no pre-booked meals or future-dated drops.",
-    icon: <Clock className="h-5 w-5" />,
-  },
-  {
-    title: "Pattern flags",
-    desc: "We flag repeated identical posts from individuals and throttle if it looks suspicious.",
-    icon: <Sparkles className="h-5 w-5" />,
-  },
-  {
-    title: "Ratings & proofs",
-    desc: "Providers hold responsibility. Community ratings and quick reports keep quality high.",
-    icon: <Star className="h-5 w-5" />,
-  },
-];
+async function fetchRoute(startLat: number, startLng: number, endLat: number, endLng: number) {
+  const params = new URLSearchParams({
+    startLat: String(startLat),
+    startLng: String(startLng),
+    endLat: String(endLat),
+    endLng: String(endLng),
+  });
 
-const steps = [
-  {
-    title: "Post surplus",
-    copy: "Add food type, quantity, expiry, and pickup window. Individuals have strict limits.",
-  },
-  {
-    title: "Alert nearby",
-    copy: "Instant pings to people and NGOs within range—priority to quicker expiry first.",
-  },
-  {
-    title: "Reserve & pickup",
-    copy: "Self-pickup stays free; bulk can request delivery for NGO or group drops.",
-  },
-];
+  const response = await fetch(`/api/logistics/route?${params.toString()}`);
+  if (!response.ok) return null;
+  return (await response.json()) as RouteLeg;
+}
+
+async function fetchMatrix(nodes: Array<{ id: string; location: { lat: number; lng: number; label: string }; kind: string }>) {
+  const response = await fetch("/api/logistics/matrix", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodes }),
+  });
+  if (!response.ok) return null;
+  return (await response.json()) as MatrixResult;
+}
+
+async function optimizeMultiStop(startId: string, pickupIds: string[], endId: string, matrix: MatrixResult) {
+  const response = await fetch("/api/logistics/optimize", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ startId, pickupIds, endId, matrix }),
+  });
+  if (!response.ok) return null;
+  return (await response.json()) as MultiStopPlan;
+}
+
+function routeLinkForPoints(points: Array<{ lat: number; lng: number }>) {
+  if (points.length < 2) return "#";
+  const encoded = points.map((point) => `${point.lat},${point.lng}`).join("/");
+  return `https://www.google.com/maps/dir/${encoded}`;
+}
 
 export default function HomeView() {
   const router = useRouter();
   const { data } = authClient.useSession();
+  const [activeListingId, setActiveListingId] = useState(donorListings[0].id);
+  const [crisisState, setCrisisState] = useState<CrisisState>(initialCrisis);
+  const [manualCrisis, setManualCrisis] = useState(false);
+  const [pickupRoute, setPickupRoute] = useState<RouteLeg | null>(null);
+  const [deliveryRoute, setDeliveryRoute] = useState<RouteLeg | null>(null);
+  const [matrix, setMatrix] = useState<MatrixResult | null>(null);
+  const [matrixSource, setMatrixSource] = useState<string>("-");
+  const [multiStopPlan, setMultiStopPlan] = useState<MultiStopPlan | null>(null);
+  const [multiStopRoutes, setMultiStopRoutes] = useState<RouteLeg[]>([]);
+  const [notifications, setNotifications] = useState<RoutingNotification[]>([]);
 
-  const handleLogout = () => {
-    authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => router.push("/auth/sign-in"),
+  const listing = useMemo(
+    () => donorListings.find((item) => item.id === activeListingId) ?? donorListings[0],
+    [activeListingId],
+  );
+
+  const appliedCrisis = useMemo(() => {
+    if (!manualCrisis) return crisisState;
+    return {
+      active: true,
+      severity: "critical" as const,
+      reason: "Manual crisis override",
+      radiusMultiplier: 2,
+    };
+  }, [crisisState, manualCrisis]);
+
+  const fallbackAssignment = useMemo(
+    () => createAssignmentDecision(listing, recipients, volunteers, appliedCrisis),
+    [listing, appliedCrisis],
+  );
+
+  const matrixAssignment = useMemo(() => {
+    if (!matrix) return null;
+    return selectMatrixAssignment(listing, recipients, volunteers, appliedCrisis, matrix);
+  }, [listing, appliedCrisis, matrix]);
+
+  const assignment = useMemo(
+    () =>
+      matrixAssignment ??
+      (fallbackAssignment
+        ? {
+            recipient: fallbackAssignment.recipient,
+            volunteer: fallbackAssignment.volunteer,
+            totalMinutes: (pickupRoute?.durationMinutes ?? 0) + (deliveryRoute?.durationMinutes ?? 0),
+            score: fallbackAssignment.assignmentScore,
+          }
+        : null),
+    [matrixAssignment, fallbackAssignment, pickupRoute?.durationMinutes, deliveryRoute?.durationMinutes],
+  );
+
+  const safety = useMemo(() => foodSafetyScreen(listing), [listing]);
+  const readiness = useMemo(() => computeRescueReadinessScore(listing, appliedCrisis), [listing, appliedCrisis]);
+
+  const { tasks, isOnline, pendingSyncCount, progress, updateTaskStatus } = useOfflineDeliverySync(initialTasks);
+
+  useEffect(() => {
+    const nodes = buildAssignmentMatrixNodes(listing, recipients, volunteers);
+    const resolveMatrix = async () => {
+      const result = await fetchMatrix(nodes);
+      if (!result) return;
+      setMatrix(result);
+      setMatrixSource(result.source);
+    };
+    void resolveMatrix();
+  }, [listing]);
+
+  useEffect(() => {
+    const getCrisis = async () => {
+      const params = new URLSearchParams({
+        lat: String(listing.location.lat),
+        lng: String(listing.location.lng),
+        demandSpike: String(readiness > 75 ? 0.65 : 0.25),
+      });
+      const response = await fetch(`/api/logistics/crisis?${params.toString()}`);
+      if (!response.ok) return;
+      const state = (await response.json()) as CrisisState;
+      setCrisisState(state);
+    };
+
+    void getCrisis();
+    const interval = window.setInterval(getCrisis, 60000);
+    return () => window.clearInterval(interval);
+  }, [listing.location.lat, listing.location.lng, readiness]);
+
+  useEffect(() => {
+    const resolveRoutes = async () => {
+      if (!assignment) {
+        setPickupRoute(null);
+        setDeliveryRoute(null);
+        return;
+      }
+
+      const volunteer = assignment.volunteer;
+      const recipient = assignment.recipient;
+
+      const [pickup, delivery] = await Promise.all([
+        fetchRoute(volunteer.location.lat, volunteer.location.lng, listing.location.lat, listing.location.lng),
+        fetchRoute(listing.location.lat, listing.location.lng, recipient.location.lat, recipient.location.lng),
+      ]);
+
+      setPickupRoute(pickup);
+      setDeliveryRoute(delivery);
+    };
+
+    void resolveRoutes();
+  }, [assignment, listing.location.lat, listing.location.lng]);
+
+  useEffect(() => {
+    const planMultiStop = async () => {
+      if (!assignment || !matrix) {
+        setMultiStopPlan(null);
+        setMultiStopRoutes([]);
+        return;
+      }
+
+      const urgentPickups = [...donorListings]
+        .sort((a, b) => a.expiresInMinutes - b.expiresInMinutes)
+        .slice(0, 2)
+        .map((item) => item.id);
+
+      const neededNodeIds = [assignment.volunteer.id, ...urgentPickups, assignment.recipient.id];
+      const matrixNodes = buildAssignmentMatrixNodes(listing, recipients, volunteers).filter((node) =>
+        neededNodeIds.includes(node.id),
+      );
+
+      const reducedMatrix = await fetchMatrix(matrixNodes);
+      if (!reducedMatrix) return;
+
+      const plan = await optimizeMultiStop(
+        assignment.volunteer.id,
+        urgentPickups,
+        assignment.recipient.id,
+        reducedMatrix,
+      );
+
+      if (!plan) return;
+      setMultiStopPlan(plan);
+
+      const sequenceRoutes: RouteLeg[] = [];
+      for (let i = 0; i < plan.sequence.length - 1; i += 1) {
+        const fromId = plan.sequence[i];
+        const toId = plan.sequence[i + 1];
+        const fromNode = matrixNodes.find((node) => node.id === fromId);
+        const toNode = matrixNodes.find((node) => node.id === toId);
+        if (!fromNode || !toNode) continue;
+
+        const leg = await fetchRoute(
+          fromNode.location.lat,
+          fromNode.location.lng,
+          toNode.location.lat,
+          toNode.location.lng,
+        );
+        if (leg) sequenceRoutes.push(leg);
+      }
+
+      setMultiStopRoutes(sequenceRoutes);
+    };
+
+    void planMultiStop();
+  }, [assignment, matrix, listing]);
+
+  useEffect(() => {
+    const escalatedTasks = tasks.filter((task) => task.escalated);
+    if (!escalatedTasks.length) return;
+
+    const latest = escalatedTasks[escalatedTasks.length - 1];
+    setNotifications((current) => [
+      {
+        id: `n-${latest.id}-${latest.updatedAt}`,
+        level: "critical",
+        message: `Escalation triggered for ${latest.id}. No quick response from assigned volunteer.`,
+        createdAt: Date.now(),
       },
-    });
+      ...current.slice(0, 6),
+    ]);
+  }, [tasks]);
+
+  const navPoints = useMemo(() => {
+    if (!assignment) return [] as Array<{ lat: number; lng: number }>;
+    return [
+      { lat: assignment.volunteer.location.lat, lng: assignment.volunteer.location.lng },
+      { lat: listing.location.lat, lng: listing.location.lng },
+      { lat: assignment.recipient.location.lat, lng: assignment.recipient.location.lng },
+    ];
+  }, [assignment, listing.location.lat, listing.location.lng]);
+
+  const multiStopNavPoints = useMemo(() => {
+    if (!assignment || !multiStopPlan?.sequence?.length) return [] as Array<{ lat: number; lng: number }>;
+
+    const allNodes = [
+      ...buildAssignmentMatrixNodes(listing, recipients, volunteers),
+      ...donorListings.map((item) => ({ id: item.id, kind: "donor" as const, location: item.location })),
+    ];
+
+    return multiStopPlan.sequence
+      .map((nodeId) => allNodes.find((node) => node.id === nodeId)?.location)
+      .filter((point): point is { lat: number; lng: number; label: string } => Boolean(point))
+      .map((point) => ({ lat: point.lat, lng: point.lng }));
+  }, [assignment, multiStopPlan, listing]);
+
+  const uploadProofImage = async (taskId: string, file: File | null) => {
+    if (!file) return;
+    const localUrl = URL.createObjectURL(file);
+    await updateTaskStatus(taskId, "delivered", { proofImageUrl: localUrl });
   };
 
-  const initials = data?.user?.name
-    ?.split(" ")
-    .map((chunk) => chunk[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
   return (
-    <div
-      className="min-h-screen bg-gradient-to-br from-[#f7fbf5] via-[#f7f5ef] to-[#eff4ee] text-[#1a1c1a]"
-      style={{ color: palette.neutral }}
-    >
-      <div className="relative isolate max-w-6xl px-4 py-10 mx-auto space-y-10">
-        <div className="absolute inset-x-10 -top-10 h-40 bg-gradient-to-r from-[#2d5a27]/15 via-[#f57c00]/10 to-[#ffb300]/10 blur-3xl" />
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      <SWRegister />
 
-        <header className="flex items-center justify-between gap-4 rounded-2xl bg-white/70 p-4 backdrop-blur shadow-lg border border-white/50">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-full bg-[#2d5a27] text-white flex items-center justify-center font-bold">
-              {initials || "FD"}
-            </div>
-            <div>
-              <p className="text-xs font-semibold tracking-[0.08em] text-[#2d5a27] uppercase">
-                Smart Food Rescue
-              </p>
-              <p className="text-xl font-semibold text-[#0f1a11]">
-                Feedo Network
-              </p>
-            </div>
+      <div className="mx-auto flex max-w-7xl flex-col gap-4">
+        <div className="flex flex-col justify-between gap-3 rounded-xl border bg-white p-4 md:flex-row md:items-center">
+          <div>
+            <p className="text-sm text-slate-500">Real-time Rescue Operations</p>
+            <h1 className="text-2xl font-semibold text-slate-900">Welcome, {data?.user.name}</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              className="bg-white text-[#2d5a27] border-[#cdd7c8] hover:bg-[#f0f6ed]"
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                isOnline ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+              }`}
             >
-              <Bell className="mr-2 h-4 w-4" />
-              Alerts
+              {isOnline ? "Online" : "Offline mode"}
+            </span>
+            <Button
+              variant={manualCrisis ? "default" : "outline"}
+              onClick={() => setManualCrisis((current) => !current)}
+            >
+              {manualCrisis ? "Disable Crisis Override" : "Enable Crisis Override"}
             </Button>
             <Button
-              className="bg-[#2d5a27] hover:bg-[#254a21] text-white"
-              onClick={handleLogout}
+              onClick={() => {
+                authClient.signOut({
+                  fetchOptions: { onSuccess: () => router.push("/auth/sign-in") },
+                });
+              }}
             >
               Logout
             </Button>
           </div>
-        </header>
+        </div>
 
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#2d5a27] via-[#2f6028] to-[#f57c00] p-8 text-white shadow-2xl">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/asfalt-dark.png')] opacity-15" />
-          <div className="relative grid items-center gap-10 md:grid-cols-2">
-            <div className="space-y-5">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#e9f6e4]">
-                Live surplus • Trust-first
-              </span>
-              <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
-                Rescue real surplus food
-                <span className="block italic text-[#ffe6b0]">
-                  before it becomes waste.
-                </span>
-              </h1>
-              <p className="text-lg text-white/85 max-w-xl">
-                Nearby people and NGOs get instant alerts when kitchens post
-                genuine surplus. Individuals stay capped, bulk kitchens move
-                larger drops with delivery options.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <Button className="bg-white text-[#2d5a27] hover:bg-[#f1f7ee]">
-                  Post surplus now
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-white/50 text-white hover:bg-white/10"
-                >
-                  Browse nearby
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-white/50 text-white hover:bg-white/10"
-                >
-                  NGO pickup request
-                </Button>
+        <div className="grid gap-4 lg:grid-cols-[360px,1fr]">
+          <aside className="space-y-4">
+            <section className="rounded-xl border bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Crisis Signal</p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">{appliedCrisis.severity.toUpperCase()}</p>
+              <p className="text-sm text-slate-600">{appliedCrisis.reason}</p>
+              <p className="mt-2 text-sm text-slate-700">Radius Multiplier: {appliedCrisis.radiusMultiplier}x</p>
+              <p className="mt-1 text-xs text-slate-500">Matrix source: {matrixSource}</p>
+            </section>
+
+            <section className="rounded-xl border bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Donation Feed</p>
+              <div className="mt-2 space-y-2">
+                {donorListings.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveListingId(item.id)}
+                    className={`w-full rounded-lg border px-3 py-2 text-left ${
+                      item.id === listing.id ? "border-blue-500 bg-blue-50" : "border-slate-200"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-slate-900">{item.location.label}</p>
+                    <p className="text-xs text-slate-600">
+                      {item.foodType} • {item.quantityKg}kg • expires in {item.expiresInMinutes}m
+                    </p>
+                  </button>
+                ))}
               </div>
-            </div>
-            <div className="grid gap-4">
-              <div className="grid grid-cols-3 gap-4">
-                {["Primary", "Secondary", "Tertiary"].map((tone, idx) => (
-                  <div key={tone} className="rounded-2xl bg-white/10 p-3">
-                    <p className="text-sm font-semibold mb-1">{tone}</p>
-                    <div
-                      className="h-12 rounded-xl"
-                      style={{
-                        background:
-                          idx === 0
-                            ? "linear-gradient(90deg, #0f3611 0%, #2d5a27 50%, #bdf2b3 100%)"
-                            : idx === 1
-                              ? "linear-gradient(90deg, #5c2c00 0%, #f57c00 50%, #ffd4a3 100%)"
-                              : "linear-gradient(90deg, #4a2e00 0%, #ffb300 50%, #ffe7a6 100%)",
-                      }}
-                    />
+            </section>
+
+            <section className="rounded-xl border bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Rescue Intelligence</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">{readiness}/100</p>
+              <p className="text-sm text-slate-600">Safety: {safety}</p>
+              {assignment ? (
+                <div className="mt-3 text-sm text-slate-700">
+                  <p>Recipient: {assignment.recipient.name}</p>
+                  <p>Volunteer: {assignment.volunteer.name}</p>
+                  <p>Assignment score: {assignment.score}</p>
+                  <p>
+                    ETA: {assignment.totalMinutes || (pickupRoute?.durationMinutes ?? 0) + (deliveryRoute?.durationMinutes ?? 0)} min
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-red-700">No compatible recipient-volunteer match.</p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a
+                  href={routeLinkForPoints(navPoints)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700"
+                >
+                  Open Live Navigation
+                </a>
+                <a
+                  href={routeLinkForPoints(multiStopNavPoints)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-md border border-orange-300 px-2 py-1 text-xs text-orange-700"
+                >
+                  Open Multi-Stop Navigation
+                </a>
+              </div>
+            </section>
+
+            <section className="rounded-xl border bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Volunteer Task Tracking</p>
+              <p className="mt-2 text-sm text-slate-700">
+                Delivered {progress.delivered}/{progress.total}
+              </p>
+              <p className="text-xs text-slate-500">Pending offline sync: {pendingSyncCount}</p>
+              <div className="mt-3 space-y-2">
+                {tasks.map((task) => (
+                  <div key={task.id} className="rounded-lg border border-slate-200 p-2">
+                    <p className="text-xs text-slate-500">Task {task.id}</p>
+                    <p className="text-sm font-medium text-slate-900">Status: {task.status}</p>
+                    {task.escalated ? <p className="text-xs text-red-600">Escalated due to delayed response</p> : null}
+                    {task.proofImageUrl ? (
+                      <Image
+                        src={task.proofImageUrl}
+                        alt="Delivery proof"
+                        width={320}
+                        height={80}
+                        className="mt-2 h-20 w-full rounded object-cover"
+                      />
+                    ) : null}
+                    <div className="mt-2 flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => void updateTaskStatus(task.id, "assigned")}>Accept</Button>
+                      <Button size="sm" variant="outline" onClick={() => void updateTaskStatus(task.id, "picked")}>Pick</Button>
+                      <Button size="sm" onClick={() => void updateTaskStatus(task.id, "delivered")}>Deliver</Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void updateTaskStatus(task.id, task.status, { escalated: true })}
+                      >
+                        Escalate
+                      </Button>
+                    </div>
+                    <label className="mt-2 block text-xs text-slate-600">
+                      Proof image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="mt-1 block text-xs"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] ?? null;
+                          void uploadProofImage(task.id, file);
+                        }}
+                      />
+                    </label>
                   </div>
                 ))}
               </div>
-              <div className="rounded-2xl bg-white/10 p-4 grid grid-cols-3 gap-3 text-sm font-semibold">
-                <div>
-                  <p className="text-white/70 text-xs">This month</p>
-                  <p className="text-2xl font-bold">42kg</p>
-                  <p className="text-white/70">food rescued</p>
-                </div>
-                <div>
-                  <p className="text-white/70 text-xs">Impact</p>
-                  <p className="text-2xl font-bold">28</p>
-                  <p className="text-white/70">families served</p>
-                </div>
-                <div>
-                  <p className="text-white/70 text-xs">Trust</p>
-                  <p className="text-2xl font-bold flex items-center gap-1">
-                    4.8 <Star className="h-4 w-4 fill-white text-white" />
-                  </p>
-                  <p className="text-white/70">avg rating</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+            </section>
 
-        <section className="grid gap-6 rounded-3xl bg-white/80 p-6 shadow-xl backdrop-blur">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2d5a27]">
-                Live surplus near you
-              </p>
-              <h2 className="text-3xl font-bold text-[#23311f]">
-                Browse & reserve
-              </h2>
-              <p className="text-sm text-[#565c53]">
-                Instant alerts, genuine surplus, no pre-booking.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button className="bg-[#2d5a27] text-white hover:bg-[#244621]">
-                Nearby
-              </Button>
-              <Button
-                variant="outline"
-                className="border-[#d7dcd4] text-[#23311f]"
-              >
-                Individual
-              </Button>
-              <Button
-                variant="outline"
-                className="border-[#d7dcd4] text-[#23311f]"
-              >
-                Bulk
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {liveListings.map((listing) => (
-              <article
-                key={listing.title}
-                className="group relative overflow-hidden rounded-2xl border border-[#e5e8e1] bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span
-                    className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em]"
-                    style={{
-                      backgroundColor:
-                        listing.providerType === "bulk" ? "#fff3e4" : "#e6f2e3",
-                      color:
-                        listing.providerType === "bulk" ? "#a04900" : "#2d5a27",
-                    }}
-                  >
-                    {listing.providerType === "bulk"
-                      ? "Bulk provider"
-                      : "Individual"}
-                  </span>
-                  <span className="flex items-center gap-1 text-sm font-semibold text-[#454745]">
-                    <Star className="h-4 w-4 fill-[#ffb300] text-[#ffb300]" />{" "}
-                    {listing.rating.toFixed(1)}
-                  </span>
-                </div>
-                <h3 className="text-xl font-bold text-[#23311f] leading-tight mb-1">
-                  {listing.title}
-                </h3>
-                <p className="text-sm text-[#565c53] mb-4">
-                  {listing.provider}
-                </p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {listing.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-[#f2f5f0] px-3 py-1 text-xs font-semibold text-[#2d5a27]"
+            <section className="rounded-xl border bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Notifications</p>
+              <div className="mt-2 space-y-2">
+                {!notifications.length ? (
+                  <p className="text-xs text-slate-500">No alerts yet.</p>
+                ) : (
+                  notifications.map((notice) => (
+                    <div
+                      key={notice.id}
+                      className={`rounded border px-2 py-1 text-xs ${
+                        notice.level === "critical"
+                          ? "border-red-300 bg-red-50 text-red-700"
+                          : notice.level === "warning"
+                            ? "border-amber-300 bg-amber-50 text-amber-700"
+                            : "border-slate-200 bg-slate-50 text-slate-700"
+                      }`}
                     >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between text-sm font-semibold text-[#23311f] mb-3">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-4 w-4 text-[#f57c00]" />{" "}
-                    {listing.expiry}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4 text-[#2d5a27]" />{" "}
-                    {listing.distance}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-[#565c53]">
-                  <span className="flex items-center gap-1">
-                    <Users className="h-4 w-4 text-[#2d5a27]" />{" "}
-                    {listing.quantity}
-                  </span>
-                  <span className="text-[#2d5a27] font-bold">
-                    {listing.price}
-                  </span>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-3">
-          <div className="col-span-2 rounded-3xl bg-white/80 p-6 shadow-xl backdrop-blur">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2d5a27]">
-              Safety net
-            </p>
-            <h3 className="text-3xl font-bold text-[#23311f] mb-6">
-              Trust & quality guardrails
-            </h3>
-            <div className="grid gap-4 md:grid-cols-2">
-              {safeguards.map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-2xl border border-[#e5e8e1] bg-white p-4 shadow-sm"
-                >
-                  <div className="mb-2 flex items-center gap-2 text-[#2d5a27]">
-                    {item.icon}
-                    <span className="font-semibold">{item.title}</span>
-                  </div>
-                  <p className="text-sm text-[#565c53] leading-relaxed">
-                    {item.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-3xl bg-gradient-to-br from-[#f57c00] via-[#ffb300] to-[#ffe7a6] p-6 text-[#2d1700] shadow-2xl">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#5e2c00]">
-              How it works
-            </p>
-            <h3 className="text-2xl font-bold mb-4">Rescue flow</h3>
-            <div className="space-y-4">
-              {steps.map((step, idx) => (
-                <div
-                  key={step.title}
-                  className="rounded-2xl bg-white/70 p-3 shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2d5a27] text-white font-bold">
-                      {idx + 1}
+                      {notice.message}
                     </div>
-                    <div>
-                      <p className="font-semibold text-[#1f2a1a]">
-                        {step.title}
-                      </p>
-                      <p className="text-sm text-[#4a3a16]">{step.copy}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 rounded-2xl bg-white/80 p-4 text-[#1f2a1a] shadow-sm">
-              <div className="flex items-center gap-2 font-semibold">
-                <Truck className="h-5 w-5 text-[#5e2c00]" /> Delivery for bulk &
-                NGOs
+                  ))
+                )}
               </div>
-              <p className="text-sm text-[#4a3a16] mt-2">
-                Bulk kitchens can opt for partnered delivery for large drops.
-                Individuals remain pickup-only to keep things local and fast.
+            </section>
+          </aside>
+
+          <section className="rounded-xl border bg-white p-2 md:p-4">
+            <LogisticsMap
+              listing={listing}
+              recipients={recipients}
+              volunteers={volunteers}
+              selectedRecipientId={assignment?.recipient.id}
+              selectedVolunteerId={assignment?.volunteer.id}
+              pickupRoute={pickupRoute}
+              deliveryRoute={deliveryRoute}
+              multiStopRoutes={multiStopRoutes}
+            />
+            <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+              <p>
+                Pickup leg: {pickupRoute?.distanceKm ?? "-"} km / {pickupRoute?.durationMinutes ?? "-"} min
+              </p>
+              <p>
+                Delivery leg: {deliveryRoute?.distanceKm ?? "-"} km / {deliveryRoute?.durationMinutes ?? "-"} min
+              </p>
+              <p>
+                Multi-stop: {multiStopPlan?.totalDistanceKm ?? "-"} km / {multiStopPlan?.totalDurationMinutes ?? "-"} min
+              </p>
+              <p>
+                Sequence: {multiStopPlan?.sequence?.join(" -> ") ?? "-"}
               </p>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </div>
   );
