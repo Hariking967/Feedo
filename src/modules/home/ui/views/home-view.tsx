@@ -6,6 +6,8 @@ import Image from "next/image";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { donorListings, recipients, volunteers } from "../../data/network-seed";
 import { createAssignmentDecision } from "../../lib/matching";
 import { buildAssignmentMatrixNodes, selectMatrixAssignment } from "../../lib/matrix-assignment";
@@ -286,210 +288,360 @@ export default function HomeView() {
     await updateTaskStatus(taskId, "delivered", { proofImageUrl: localUrl });
   };
 
+  const etaMinutes = assignment?.totalMinutes || (pickupRoute?.durationMinutes ?? 0) + (deliveryRoute?.durationMinutes ?? 0);
+
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#f8fafc_38%,#f5f3ff_100%)] p-4 md:p-8">
       <SWRegister />
 
       <div className="mx-auto flex max-w-7xl flex-col gap-4">
-        <div className="flex flex-col justify-between gap-3 rounded-xl border bg-white p-4 md:flex-row md:items-center">
-          <div>
-            <p className="text-sm text-slate-500">Real-time Rescue Operations</p>
-            <h1 className="text-2xl font-semibold text-slate-900">Welcome, {data?.user.name}</h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                isOnline ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-              }`}
-            >
-              {isOnline ? "Online" : "Offline mode"}
-            </span>
-            <Button
-              variant={manualCrisis ? "default" : "outline"}
-              onClick={() => setManualCrisis((current) => !current)}
-            >
-              {manualCrisis ? "Disable Crisis Override" : "Enable Crisis Override"}
-            </Button>
-            <Button
-              onClick={() => {
-                authClient.signOut({
-                  fetchOptions: { onSuccess: () => router.push("/auth/sign-in") },
-                });
-              }}
-            >
-              Logout
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-[360px,1fr]">
-          <aside className="space-y-4">
-            <section className="rounded-xl border bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Crisis Signal</p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">{appliedCrisis.severity.toUpperCase()}</p>
-              <p className="text-sm text-slate-600">{appliedCrisis.reason}</p>
-              <p className="mt-2 text-sm text-slate-700">Radius Multiplier: {appliedCrisis.radiusMultiplier}x</p>
-              <p className="mt-1 text-xs text-slate-500">Matrix source: {matrixSource}</p>
-            </section>
-
-            <section className="rounded-xl border bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Donation Feed</p>
-              <div className="mt-2 space-y-2">
-                {donorListings.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveListingId(item.id)}
-                    className={`w-full rounded-lg border px-3 py-2 text-left ${
-                      item.id === listing.id ? "border-blue-500 bg-blue-50" : "border-slate-200"
-                    }`}
-                  >
-                    <p className="text-sm font-semibold text-slate-900">{item.location.label}</p>
-                    <p className="text-xs text-slate-600">
-                      {item.foodType} • {item.quantityKg}kg • expires in {item.expiresInMinutes}m
-                    </p>
-                  </button>
-                ))}
+        <Card className="border-slate-200/80 bg-white/90 backdrop-blur-sm">
+          <CardContent className="pt-6">
+            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+              <div>
+                <p className="text-sm font-medium tracking-wide text-slate-500">Real-time Rescue Operations</p>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900">Logistics Command Center</h1>
+                <p className="text-sm text-slate-600">Welcome, {data?.user?.name ?? "Operator"}</p>
               </div>
-            </section>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    isOnline ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                  }`}
+                >
+                  {isOnline ? "Online Sync Active" : "Offline Queueing Enabled"}
+                </span>
+                <Button
+                  variant={manualCrisis ? "default" : "outline"}
+                  onClick={() => setManualCrisis((current) => !current)}
+                >
+                  {manualCrisis ? "Disable Crisis Override" : "Enable Crisis Override"}
+                </Button>
+                <Button
+                  onClick={() => {
+                    authClient.signOut({
+                      fetchOptions: { onSuccess: () => router.push("/auth/sign-in") },
+                    });
+                  }}
+                >
+                  Logout
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-            <section className="rounded-xl border bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Rescue Intelligence</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900">{readiness}/100</p>
-              <p className="text-sm text-slate-600">Safety: {safety}</p>
-              {assignment ? (
-                <div className="mt-3 text-sm text-slate-700">
-                  <p>Recipient: {assignment.recipient.name}</p>
-                  <p>Volunteer: {assignment.volunteer.name}</p>
-                  <p>Assignment score: {assignment.score}</p>
-                  <p>
-                    ETA: {assignment.totalMinutes || (pickupRoute?.durationMinutes ?? 0) + (deliveryRoute?.durationMinutes ?? 0)} min
+        <Card className="border-slate-200/80 bg-white/90 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-base">Active Donation Feed</CardTitle>
+            <CardDescription>Choose a listing to update assignment, route, and role dashboards.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 md:grid-cols-3">
+              {donorListings.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveListingId(item.id)}
+                  className={`rounded-lg border p-3 text-left transition ${
+                    item.id === listing.id
+                      ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-slate-900">{item.location.label}</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {item.foodType} • {item.quantityKg}kg • expires in {item.expiresInMinutes}m
                   </p>
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-red-700">No compatible recipient-volunteer match.</p>
-              )}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <a
-                  href={routeLinkForPoints(navPoints)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700"
-                >
-                  Open Live Navigation
-                </a>
-                <a
-                  href={routeLinkForPoints(multiStopNavPoints)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-md border border-orange-300 px-2 py-1 text-xs text-orange-700"
-                >
-                  Open Multi-Stop Navigation
-                </a>
-              </div>
-            </section>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-            <section className="rounded-xl border bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Volunteer Task Tracking</p>
-              <p className="mt-2 text-sm text-slate-700">
-                Delivered {progress.delivered}/{progress.total}
-              </p>
-              <p className="text-xs text-slate-500">Pending offline sync: {pendingSyncCount}</p>
-              <div className="mt-3 space-y-2">
-                {tasks.map((task) => (
-                  <div key={task.id} className="rounded-lg border border-slate-200 p-2">
-                    <p className="text-xs text-slate-500">Task {task.id}</p>
-                    <p className="text-sm font-medium text-slate-900">Status: {task.status}</p>
-                    {task.escalated ? <p className="text-xs text-red-600">Escalated due to delayed response</p> : null}
-                    {task.proofImageUrl ? (
-                      <Image
-                        src={task.proofImageUrl}
-                        alt="Delivery proof"
-                        width={320}
-                        height={80}
-                        className="mt-2 h-20 w-full rounded object-cover"
-                      />
-                    ) : null}
-                    <div className="mt-2 flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => void updateTaskStatus(task.id, "assigned")}>Accept</Button>
-                      <Button size="sm" variant="outline" onClick={() => void updateTaskStatus(task.id, "picked")}>Pick</Button>
-                      <Button size="sm" onClick={() => void updateTaskStatus(task.id, "delivered")}>Deliver</Button>
+        <Tabs defaultValue="volunteer" className="gap-4">
+          <TabsList className="grid h-11 w-full grid-cols-3 bg-slate-100 p-1">
+            <TabsTrigger value="volunteer" className="font-semibold">Volunteer View</TabsTrigger>
+            <TabsTrigger value="ngo" className="font-semibold">NGO View</TabsTrigger>
+            <TabsTrigger value="donor" className="font-semibold">Donor View</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="volunteer" className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+              <Card className="border-slate-200/80 bg-white/95">
+                <CardHeader>
+                  <CardTitle className="text-lg">Volunteer Navigation Console</CardTitle>
+                  <CardDescription>Live map with pickup, delivery, and optional multi-stop routing.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <LogisticsMap
+                    listing={listing}
+                    recipients={recipients}
+                    volunteers={volunteers}
+                    selectedRecipientId={assignment?.recipient.id}
+                    selectedVolunteerId={assignment?.volunteer.id}
+                    pickupRoute={pickupRoute}
+                    deliveryRoute={deliveryRoute}
+                    multiStopRoutes={multiStopRoutes}
+                  />
+
+                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                    <p className="rounded-md bg-slate-50 p-2">Pickup: {pickupRoute?.distanceKm ?? "-"} km / {pickupRoute?.durationMinutes ?? "-"} min</p>
+                    <p className="rounded-md bg-slate-50 p-2">Delivery: {deliveryRoute?.distanceKm ?? "-"} km / {deliveryRoute?.durationMinutes ?? "-"} min</p>
+                    <p className="rounded-md bg-slate-50 p-2">Multi-stop: {multiStopPlan?.totalDistanceKm ?? "-"} km / {multiStopPlan?.totalDurationMinutes ?? "-"} min</p>
+                    <p className="rounded-md bg-slate-50 p-2">Matrix source: {matrixSource}</p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={routeLinkForPoints(navPoints)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Open Live Route
+                    </a>
+                    <a
+                      href={routeLinkForPoints(multiStopNavPoints)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-md border border-orange-300 px-3 py-2 text-sm font-medium text-orange-700 hover:bg-orange-50"
+                    >
+                      Open Multi-stop Route
+                    </a>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-4">
+                <Card className="border-slate-200/80 bg-white/95">
+                  <CardHeader>
+                    <CardTitle className="text-base">Assignment and Readiness</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-slate-700">
+                    <p className="rounded-md bg-slate-50 p-2">Readiness: <span className="font-semibold">{readiness}/100</span></p>
+                    <p className="rounded-md bg-slate-50 p-2">Safety screen: <span className="font-semibold">{safety}</span></p>
+                    <p className="rounded-md bg-slate-50 p-2">Crisis: <span className="font-semibold">{appliedCrisis.severity.toUpperCase()}</span> ({appliedCrisis.radiusMultiplier}x radius)</p>
+                    {assignment ? (
+                      <>
+                        <p className="rounded-md bg-slate-50 p-2">Volunteer: <span className="font-semibold">{assignment.volunteer.name}</span></p>
+                        <p className="rounded-md bg-slate-50 p-2">Recipient: <span className="font-semibold">{assignment.recipient.name}</span></p>
+                        <p className="rounded-md bg-slate-50 p-2">ETA: <span className="font-semibold">{etaMinutes} min</span></p>
+                        <p className="rounded-md bg-slate-50 p-2">Score: <span className="font-semibold">{assignment.score}</span></p>
+                        <p className="rounded-md bg-slate-50 p-2">Sequence: <span className="font-semibold">{multiStopPlan?.sequence?.join(" -> ") ?? "Single donor flow"}</span></p>
+                      </>
+                    ) : (
+                      <p className="rounded-md bg-red-50 p-2 text-red-700">No compatible recipient-volunteer assignment right now.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-slate-200/80 bg-white/95">
+                  <CardHeader>
+                    <CardTitle className="text-base">Volunteer Task Tracking</CardTitle>
+                    <CardDescription>Delivered {progress.delivered}/{progress.total} • Pending sync {pendingSyncCount}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {tasks.map((task) => (
+                      <div key={task.id} className="rounded-lg border border-slate-200 p-3">
+                        <p className="text-xs text-slate-500">Task {task.id}</p>
+                        <p className="text-sm font-medium text-slate-900">Status: {task.status}</p>
+                        {task.escalated ? <p className="text-xs text-red-600">Escalated due to delayed response</p> : null}
+                        {task.proofImageUrl ? (
+                          <Image
+                            src={task.proofImageUrl}
+                            alt="Delivery proof"
+                            width={320}
+                            height={80}
+                            className="mt-2 h-20 w-full rounded object-cover"
+                          />
+                        ) : null}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Button size="sm" variant="outline" onClick={() => void updateTaskStatus(task.id, "assigned")}>Accept</Button>
+                          <Button size="sm" variant="outline" onClick={() => void updateTaskStatus(task.id, "picked")}>Pick</Button>
+                          <Button size="sm" onClick={() => void updateTaskStatus(task.id, "delivered")}>Deliver</Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void updateTaskStatus(task.id, task.status, { escalated: true })}
+                          >
+                            Escalate
+                          </Button>
+                        </div>
+                        <label className="mt-2 block text-xs text-slate-600">
+                          Proof image
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="mt-1 block text-xs"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0] ?? null;
+                              void uploadProofImage(task.id, file);
+                            }}
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-slate-200/80 bg-white/95">
+                  <CardHeader>
+                    <CardTitle className="text-base">Operational Alerts</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {!notifications.length ? (
+                      <p className="text-sm text-slate-500">No alerts yet.</p>
+                    ) : (
+                      notifications.map((notice) => (
+                        <div
+                          key={notice.id}
+                          className={`rounded border px-3 py-2 text-sm ${
+                            notice.level === "critical"
+                              ? "border-red-300 bg-red-50 text-red-700"
+                              : notice.level === "warning"
+                                ? "border-amber-300 bg-amber-50 text-amber-700"
+                                : "border-slate-200 bg-slate-50 text-slate-700"
+                          }`}
+                        >
+                          {notice.message}
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="ngo" className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="border-slate-200/80 bg-white/95">
+                <CardHeader>
+                  <CardTitle className="text-lg">NGO Intake and Capacity</CardTitle>
+                  <CardDescription>Clear recipient compatibility and intake readiness for the selected donation.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {recipients.map((recipient) => {
+                    const acceptsFoodType = recipient.acceptedFoodTypes.includes(listing.foodType);
+                    const acceptsCategory = recipient.acceptedCategories.includes(listing.category);
+                    const canTakeLoad = recipient.capacityMeals >= listing.quantityKg * 4;
+                    const eligible = acceptsFoodType && acceptsCategory && canTakeLoad && recipient.openNow;
+
+                    return (
+                      <div key={recipient.id} className="rounded-lg border border-slate-200 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-slate-900">{recipient.name}</p>
+                          <span
+                            className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                              eligible ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+                            }`}
+                          >
+                            {eligible ? "Eligible" : "Review"}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-600">Capacity: {recipient.capacityMeals} meals • Open: {recipient.openNow ? "Yes" : "No"}</p>
+                        <p className="mt-1 text-xs text-slate-600">
+                          Types: {recipient.acceptedFoodTypes.join(", ")} • Categories: {recipient.acceptedCategories.join(", ")}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-600">Refrigeration: {recipient.refrigeration ? "Available" : "Unavailable"}</p>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-200/80 bg-white/95">
+                <CardHeader>
+                  <CardTitle className="text-lg">NGO Situation Board</CardTitle>
+                  <CardDescription>Crisis severity, route confidence, and expected inbound supply.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm text-slate-700">
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Crisis State</p>
+                    <p className="mt-1 font-semibold text-slate-900">{appliedCrisis.severity.toUpperCase()}</p>
+                    <p className="text-xs text-slate-600">{appliedCrisis.reason}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Inbound Donation</p>
+                    <p className="mt-1 font-semibold text-slate-900">{listing.location.label}</p>
+                    <p>{listing.quantityKg}kg • {listing.foodType} • expires in {listing.expiresInMinutes}m</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Route Confidence</p>
+                    <p>Engine: <span className="font-semibold">{matrixSource}</span></p>
+                    <p>Volunteer ETA: <span className="font-semibold">{etaMinutes || "-"} min</span></p>
+                    <p>Pickup + Delivery available: <span className="font-semibold">{pickupRoute && deliveryRoute ? "Yes" : "Pending"}</span></p>
+                  </div>
+                  <div className="rounded-lg bg-blue-50 p-3 text-blue-800">
+                    <p className="font-semibold">Recommended receiving center</p>
+                    <p>{assignment?.recipient.name ?? "Awaiting compatible assignment"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="donor" className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+              <Card className="border-slate-200/80 bg-white/95">
+                <CardHeader>
+                  <CardTitle className="text-lg">Donor Listings</CardTitle>
+                  <CardDescription>Create urgency-aware donations and monitor rescue readiness clearly.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-3 md:grid-cols-2">
+                  {donorListings.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`rounded-lg border p-3 ${
+                        item.id === listing.id ? "border-blue-400 bg-blue-50" : "border-slate-200"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold text-slate-900">{item.location.label}</p>
+                      <p className="text-xs text-slate-600">Prepared at {item.prepTime}</p>
+                      <p className="mt-1 text-sm text-slate-700">{item.quantityKg}kg • {item.foodType} • {item.category}</p>
+                      <p className="mt-1 text-xs text-slate-600">Expires in {item.expiresInMinutes} minutes</p>
+                      <p className="mt-1 text-xs text-slate-600">Reliability score: {(item.donorReliability * 100).toFixed(0)}%</p>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => void updateTaskStatus(task.id, task.status, { escalated: true })}
+                        className="mt-3"
+                        onClick={() => setActiveListingId(item.id)}
                       >
-                        Escalate
+                        Focus This Listing
                       </Button>
                     </div>
-                    <label className="mt-2 block text-xs text-slate-600">
-                      Proof image
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="mt-1 block text-xs"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0] ?? null;
-                          void uploadProofImage(task.id, file);
-                        }}
-                      />
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
+                </CardContent>
+              </Card>
 
-            <section className="rounded-xl border bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Notifications</p>
-              <div className="mt-2 space-y-2">
-                {!notifications.length ? (
-                  <p className="text-xs text-slate-500">No alerts yet.</p>
-                ) : (
-                  notifications.map((notice) => (
-                    <div
-                      key={notice.id}
-                      className={`rounded border px-2 py-1 text-xs ${
-                        notice.level === "critical"
-                          ? "border-red-300 bg-red-50 text-red-700"
-                          : notice.level === "warning"
-                            ? "border-amber-300 bg-amber-50 text-amber-700"
-                            : "border-slate-200 bg-slate-50 text-slate-700"
-                      }`}
-                    >
-                      {notice.message}
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
-          </aside>
+              <div className="space-y-4">
+                <Card className="border-slate-200/80 bg-white/95">
+                  <CardHeader>
+                    <CardTitle className="text-base">Donor Quality Guardrails</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-slate-700">
+                    <p className="rounded-md bg-slate-50 p-2">Use only near-expiry genuine surplus, never fresh production stock.</p>
+                    <p className="rounded-md bg-slate-50 p-2">Keep package labeling clear for allergens and prep timestamp.</p>
+                    <p className="rounded-md bg-slate-50 p-2">Prioritize handoff within {listing.expiresInMinutes} minutes for this listing.</p>
+                    <p className="rounded-md bg-slate-50 p-2">Current rescue readiness score: <span className="font-semibold">{readiness}/100</span></p>
+                  </CardContent>
+                </Card>
 
-          <section className="rounded-xl border bg-white p-2 md:p-4">
-            <LogisticsMap
-              listing={listing}
-              recipients={recipients}
-              volunteers={volunteers}
-              selectedRecipientId={assignment?.recipient.id}
-              selectedVolunteerId={assignment?.volunteer.id}
-              pickupRoute={pickupRoute}
-              deliveryRoute={deliveryRoute}
-              multiStopRoutes={multiStopRoutes}
-            />
-            <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-              <p>
-                Pickup leg: {pickupRoute?.distanceKm ?? "-"} km / {pickupRoute?.durationMinutes ?? "-"} min
-              </p>
-              <p>
-                Delivery leg: {deliveryRoute?.distanceKm ?? "-"} km / {deliveryRoute?.durationMinutes ?? "-"} min
-              </p>
-              <p>
-                Multi-stop: {multiStopPlan?.totalDistanceKm ?? "-"} km / {multiStopPlan?.totalDurationMinutes ?? "-"} min
-              </p>
-              <p>
-                Sequence: {multiStopPlan?.sequence?.join(" -> ") ?? "-"}
-              </p>
+                <Card className="border-slate-200/80 bg-white/95">
+                  <CardHeader>
+                    <CardTitle className="text-base">Donor Dispatch Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-slate-700">
+                    <p className="rounded-md bg-slate-50 p-2">Assigned volunteer: <span className="font-semibold">{assignment?.volunteer.name ?? "Pending"}</span></p>
+                    <p className="rounded-md bg-slate-50 p-2">Receiving NGO: <span className="font-semibold">{assignment?.recipient.name ?? "Pending"}</span></p>
+                    <p className="rounded-md bg-slate-50 p-2">Estimated completion: <span className="font-semibold">{etaMinutes || "-"} min</span></p>
+                    <p className="rounded-md bg-slate-50 p-2">Route path ready: <span className="font-semibold">{pickupRoute && deliveryRoute ? "Yes" : "No"}</span></p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-          </section>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
