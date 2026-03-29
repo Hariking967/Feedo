@@ -7,10 +7,17 @@ import {
   Bell,
   ChartColumn,
   History,
+  Home,
+  Map,
   Moon,
   Search,
+  ShieldAlert,
+  ShoppingBag,
   Sun,
+  User,
   UserCircle2,
+  LogOut,
+  LayoutDashboard,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -292,22 +299,87 @@ export function DashboardShell({ basePath, title, liveStatus = "Live sync active
 
       <div className="grid min-h-screen md:grid-cols-[300px_1fr]">
         <aside className="relative z-10 hidden border-r border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/85 md:block">
-          <div className="h-full overflow-y-auto">
+          <div className="h-full overflow-y-auto scroll-area-smooth">
+            {/* Brand */}
             <div className="border-b border-slate-200 p-4 dark:border-slate-800">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">Food Rescue Platform</p>
-              <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{title}</p>
-              <p className={`mt-2 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${roleAccentClasses(workspaceRole)}`}>{workspaceLabel}</p>
+              <Link href="/" className="flex items-center gap-2.5">
+                <span className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-300/30">
+                  <svg width="18" height="18" viewBox="0 0 34 34" fill="none" aria-hidden="true">
+                    <path d="M12 22c3-2 5-6 5-10 3 2 5 6 5 10" stroke="#ecfdf5" strokeWidth="2.5" strokeLinecap="round" />
+                    <path d="M17 10v14" stroke="#ecfdf5" strokeWidth="2.5" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <div>
+                  <p className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Feedo</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">Food Rescue Platform</p>
+                </div>
+              </Link>
+              <p className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${roleAccentClasses(workspaceRole)}`}>
+                {workspaceLabel}
+              </p>
             </div>
 
-            <section className="mx-3 mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+            {/* Primary nav */}
+            <nav className="px-3 pt-3 pb-2 space-y-1">
+              <p className="px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Navigation</p>
+              {([
+                { href: "/", label: "Home", icon: Home },
+                { href: "/orders", label: "My Orders", icon: ShoppingBag },
+                { href: "/map", label: "Live Map", icon: Map },
+                { href: "/analytics", label: "Impact & Analytics", icon: ChartColumn },
+                { href: "/crisis", label: "Crisis Command", icon: ShieldAlert },
+                { href: "/notifications", label: "Notifications", icon: Bell },
+              ] as Array<{ href: string; label: string; icon: React.ElementType }>).map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
+                    pathname === href || (href !== "/" && pathname.startsWith(href))
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <Icon className="size-4" />
+                  {label}
+                </Link>
+              ))}
+            </nav>
+
+            {/* Dashboard workspaces */}
+            <div className="px-3 pt-2 pb-2">
+              <p className="px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Workspaces</p>
+              {([
+                { href: "/dashboard/donor", label: "Donor Workspace" },
+                { href: "/dashboard/ngo", label: "NGO / Recipient" },
+                { href: "/dashboard/volunteer", label: "Volunteer" },
+                { href: "/dashboard/analytics", label: "Analytics" },
+              ]).map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
+                    pathname.startsWith(href)
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <LayoutDashboard className="size-4" />
+                  {label}
+                </Link>
+              ))}
+            </div>
+
+            {/* Role analytics CTA */}
+            <section className="mx-3 mt-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
               <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">Role Analytics</p>
-              <Button asChild className="mt-2 w-full gap-2">
+              <Button asChild className="mt-2 w-full gap-2" size="sm">
                 <Link href={analyticsHref}>
-                  <ChartColumn className="h-4 w-4" /> Open {workspaceLabel.replace(" Workspace", "")} Analytics
+                  <ChartColumn className="h-4 w-4" /> {workspaceLabel.replace(" Workspace", "")} Analytics
                 </Link>
               </Button>
             </section>
 
+            {/* Recent activity */}
             <section id="sidebar-history" className="mx-3 mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
               <p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                 <History className="h-3.5 w-3.5" /> {historyTitle}
@@ -316,7 +388,7 @@ export function DashboardShell({ basePath, title, liveStatus = "Live sync active
                 {lifecycleLoading ? (
                   <p className="text-xs text-slate-500 dark:text-slate-400">Loading recent activity...</p>
                 ) : sidebarHistory.length ? (
-                  sidebarHistory.slice(0, 5).map((item) => (
+                  sidebarHistory.slice(0, 4).map((item) => (
                     <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-800">
                       <p className="text-xs font-medium text-slate-800 dark:text-slate-200">{item.label}</p>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">{item.meta}</p>
@@ -327,6 +399,22 @@ export function DashboardShell({ basePath, title, liveStatus = "Live sync active
                 )}
               </div>
             </section>
+
+            {/* Profile / Sign out */}
+            <div className="mx-3 mt-3 mb-4 space-y-1">
+              <Link
+                href="/profile"
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+              >
+                <User className="size-4" /> Profile & Settings
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+              >
+                <LogOut className="size-4" /> Sign Out
+              </button>
+            </div>
 
           </div>
         </aside>
