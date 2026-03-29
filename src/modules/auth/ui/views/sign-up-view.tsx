@@ -1,49 +1,40 @@
 "use client";
 
-import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { z } from "zod";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useForm } from "react-hook-form";
-import { useRouter } from "next/navigation";
-import { FaGoogle } from "react-icons/fa";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Alert, AlertTitle } from "@/components/ui/alert";
-import { OctagonAlertIcon } from "lucide-react";
-import Link from "next/link";
-
+import { ArrowRight, Lock, Mail, OctagonAlertIcon, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-import { ShieldCheck, Clock, Sparkles } from "lucide-react";
 
-const formSchema = z
+const schema = z
   .object({
-    name: z.string().min(1, { message: "Name is required" }),
-    email: z.string().email(),
-    password: z.string().min(1, { message: "Password is required" }),
-    confirmPassword: z.string().min(1, { message: "Password is required" }),
+    name: z.string().min(2, "Name is required"),
+    email: z.string().email("Valid email required"),
+    password: z.string().min(6, "At least 6 characters"),
+    confirmPassword: z.string().min(6, "At least 6 characters"),
   })
-  .refine((data) => data.password == data.confirmPassword, {
-    message: "Password don't match",
+  .refine((value) => value.password === value.confirmPassword, {
     path: ["confirmPassword"],
+    message: "Passwords do not match",
   });
+
+const POST_AUTH_LANDING_ROUTE = "/";
 
 export default function SignUpView() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [role, setRole] = useState<"consumer" | "supplier">("consumer");
-  const [supplierType, setSupplierType] = useState<"solo" | "catering">("solo");
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+
+  const form = useForm<z.infer<typeof schema>>({
+    resolver: zodResolver(schema),
     defaultValues: {
       name: "",
       email: "",
@@ -52,316 +43,195 @@ export default function SignUpView() {
     },
   });
 
-  const onSubmit = (data: z.infer<typeof formSchema>) => {
-    setError(null);
+  const onSubmit = async (values: z.infer<typeof schema>) => {
     setPending(true);
-    authClient.signUp.email(
-      {
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        callbackURL: "/",
-      },
-      {
-        onSuccess: () => {
-          setPending(false);
-          router.push("/");
-        },
-        onError: ({ error }) => {
-          setError(error.message);
-        },
-      },
-    );
-  };
+    setError(null);
 
-  const onSocial = (provider: "google") => {
-    setError(null);
-    setPending(true);
-    authClient.signIn.social(
-      {
-        provider: provider,
-        callbackURL: "/",
-      },
-      {
-        onSuccess: () => {
-          setPending(false);
-          // router.push('/')
-        },
-        onError: ({ error }) => {
-          setError(error.message);
-        },
-      },
-    );
+    try {
+      const result = await authClient.signUp.email({
+        name: values.name,
+        email: values.email,
+        password: values.password,
+        callbackURL: POST_AUTH_LANDING_ROUTE,
+      });
+
+      if (result?.error) {
+        setError(result.error.message ?? "Unable to create account right now.");
+        return;
+      }
+
+      if (typeof window !== "undefined") {
+        window.location.assign(POST_AUTH_LANDING_ROUTE);
+        return;
+      }
+
+      router.replace(POST_AUTH_LANDING_ROUTE);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to create account right now. Please try again.";
+      setError(message);
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f7fbf5] via-[#f4f0e7] to-[#eef3ed] text-[#1a1c1a]">
-      <div className="max-w-5xl mx-auto px-4 py-10 space-y-8">
-        <div className="text-center space-y-2">
-          <span className="inline-flex items-center justify-center rounded-full bg-[#ffe7a6] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#5e2c00]">
-            Join the rescue network
-          </span>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-[#1f2a1a]">
-            Create your Feedo account
-          </h1>
-          <p className="text-sm text-[#565c53]">
-            {role === "consumer"
-              ? "Sign up as a consumer by default. Switch to supplier if you need to post."
-              : "Supplier mode: capped pricing, short expiry, and quick pickups."}
-          </p>
-        </div>
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_8%_12%,#bbf7d0_0%,#f8fafc_34%,#cffafe_68%,#e2e8f0_100%)] px-4 py-10">
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 top-8 h-72 w-72 rounded-full bg-emerald-300/35 blur-3xl" />
+        <div className="absolute right-0 top-24 h-80 w-80 rounded-full bg-cyan-300/30 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-amber-200/35 blur-3xl" />
+      </div>
 
-        <div className="grid gap-6 md:grid-cols-5">
-          <Card className="md:col-span-3 border-[#e5e8e1] bg-white/85 backdrop-blur shadow-xl">
-            <CardContent className="p-6 md:p-8">
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-5"
-                >
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#2d5a27]">
-                      Get started
-                    </p>
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <p className="text-sm text-[#565c53]">
-                        {role === "consumer"
-                          ? "You are set as consumer. Switch to supplier to post surplus."
-                          : "Supplier mode enabled. Tell us if you are solo or catering."}
-                      </p>
-                      <button
-                        type="button"
-                        className="text-xs font-semibold text-[#2d5a27] underline underline-offset-4"
-                        onClick={() =>
-                          setRole((prev) =>
-                            prev === "consumer" ? "supplier" : "consumer",
-                          )
-                        }
-                      >
-                        {role === "consumer"
-                          ? "Click here for Supplier"
-                          : "Switch to Consumer"}
-                      </button>
-                    </div>
-                    {role === "supplier" && (
-                      <div className="mt-2 flex gap-2">
-                        {[
-                          { key: "solo", label: "Solo" },
-                          { key: "catering", label: "Catering service" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.key}
-                            type="button"
-                            className={`flex-1 rounded-full border px-3 py-2 text-xs font-semibold transition ${
-                              supplierType === opt.key
-                                ? "bg-[#2d5a27] text-white border-[#2d5a27]"
-                                : "bg-white text-[#2d5a27] border-[#d7dcd4] hover:bg-[#f2f5f0]"
-                            }`}
-                            onClick={() =>
-                              setSupplierType(opt.key as typeof supplierType)
-                            }
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+      <div className="relative mx-auto grid max-w-6xl gap-5 md:grid-cols-[1.1fr_0.9fr]">
+        <Card className="overflow-hidden border-emerald-200 bg-gradient-to-br from-emerald-700 via-teal-700 to-cyan-700 text-white shadow-[0_30px_90px_rgba(6,95,70,0.4)]">
+          <CardContent className="p-7 md:p-10">
+            <p className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-widest">
+              <Sparkles className="size-3.5" /> Feedo Network
+            </p>
+            <h1 className="mt-4 text-3xl font-black leading-tight md:text-4xl">Create your rescue account</h1>
+            <p className="mt-3 max-w-xl text-sm text-white/90 md:text-base">
+              One account gives you access to live food rescue actions, listing operations, and volunteer coordination.
+            </p>
 
-                  <div className="grid gap-4">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#2d5a27] font-semibold">
-                            Name
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="Priya Sharma"
-                              className="bg-[#f5f7f3] border border-[#d7dcd4] focus:border-[#2d5a27] focus:ring-2 focus:ring-[#b2e3a6]"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#2d5a27] font-semibold">
-                            Email
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="cook@kitchen.com"
-                              className="bg-[#f5f7f3] border border-[#d7dcd4] focus:border-[#2d5a27] focus:ring-2 focus:ring-[#b2e3a6]"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#2d5a27] font-semibold">
-                            Password
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="••••••••"
-                              className="bg-[#f5f7f3] border border-[#d7dcd4] focus:border-[#2d5a27] focus:ring-2 focus:ring-[#b2e3a6]"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#2d5a27] font-semibold">
-                            Confirm Password
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="••••••••"
-                              className="bg-[#f5f7f3] border border-[#d7dcd4] focus:border-[#2d5a27] focus:ring-2 focus:ring-[#b2e3a6]"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {!!error && (
-                    <Alert className="border-none bg-[#ffe7e7] text-[#7a1111]">
-                      <OctagonAlertIcon className="h-4 w-4" />
-                      <AlertTitle>{error}</AlertTitle>
-                    </Alert>
-                  )}
-
-                  <Button
-                    disabled={pending}
-                    className="w-full bg-[#2d5a27] hover:bg-[#254a21] text-white font-semibold shadow-lg shadow-[#2d5a27]/15"
-                    type="submit"
-                  >
-                    Create account
-                  </Button>
-
-                  <div className="relative text-center text-sm text-[#565c53]">
-                    <span className="bg-white px-3 relative z-10">
-                      Or continue with
-                    </span>
-                    <span className="absolute left-0 right-0 top-1/2 -translate-y-1/2 border-t border-[#e5e8e1]" />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3">
-                    <Button
-                      disabled={pending}
-                      onClick={() => onSocial("google")}
-                      variant="outline"
-                      type="button"
-                      className="w-full border-[#d7dcd4] text-[#2d5a27] hover:bg-[#f2f5f0]"
-                    >
-                      <FaGoogle className="mr-2" /> Google
-                    </Button>
-                  </div>
-
-                  <div className="text-center text-sm text-[#454745]">
-                    Already have an account?{" "}
-                    <Link
-                      className="font-semibold text-[#2d5a27] underline underline-offset-4"
-                      href="/auth/sign-in"
-                    >
-                      Sign in
-                    </Link>
-                  </div>
-                  <p className="text-center text-xs text-[#7b7f78]">
-                    By continuing you agree to our Terms of Service and Privacy
-                    Policy.
-                  </p>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-
-          <div className="md:col-span-2 rounded-3xl bg-gradient-to-br from-[#f57c00] via-[#ffb300] to-[#ffe7a6] text-[#2d1700] p-6 shadow-2xl relative overflow-hidden">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/asfalt-dark.png')] opacity-10" />
-            <div className="relative space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/40 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#5e2c00]">
-                Safeguards in place
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-white/35 bg-white/10 p-3">
+                <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/80">
+                  <UserRound className="size-3.5" /> Fast onboarding
+                </p>
+                <p className="mt-1 text-sm font-semibold">Register in under a minute with core details only.</p>
               </div>
-              <h3 className="text-2xl font-extrabold leading-snug">
-                Keep surplus honest, fresh, and accessible.
-              </h3>
-              <p className="text-sm text-[#4a3a16]">
-                Individuals have stricter limits; bulk providers can move larger
-                drops with delivery support for NGOs.
-              </p>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-start gap-3">
-                  <ShieldCheck className="h-5 w-5 text-[#5e2c00] mt-0.5" />
-                  <div>
-                    <p className="font-semibold">50% price cap</p>
-                    <p className="text-[#4a3a16]">
-                      Stops profiteering; ensures genuine surplus only.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Clock className="h-5 w-5 text-[#5e2c00] mt-0.5" />
-                  <div>
-                    <p className="font-semibold">Short expiry windows</p>
-                    <p className="text-[#4a3a16]">
-                      Posts need near-term pickup—no future bookings.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Sparkles className="h-5 w-5 text-[#5e2c00] mt-0.5" />
-                  <div>
-                    <p className="font-semibold">Pattern detection</p>
-                    <p className="text-[#4a3a16]">
-                      Repeated identical posts from individuals are
-                      automatically flagged.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm font-semibold">
-                <div className="rounded-2xl bg-white/70 p-3 shadow-sm">
-                  <p className="text-[#5e2c00]/80 text-xs">Food saved</p>
-                  <p className="text-xl text-[#2d5a27]">42kg this month</p>
-                </div>
-                <div className="rounded-2xl bg-white/70 p-3 shadow-sm">
-                  <p className="text-[#5e2c00]/80 text-xs">Impact</p>
-                  <p className="text-xl text-[#2d5a27]">28 families served</p>
-                </div>
+              <div className="rounded-xl border border-white/35 bg-white/10 p-3">
+                <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/80">
+                  <ShieldCheck className="size-3.5" /> Secure by default
+                </p>
+                <p className="mt-1 text-sm font-semibold">Protected auth flow with persistent session handling.</p>
               </div>
             </div>
-          </div>
-        </div>
+
+            <div className="mt-6 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-lg border border-white/25 bg-black/10 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-white/80">Onboarding</p>
+                <p className="text-lg font-black">60s</p>
+              </div>
+              <div className="rounded-lg border border-white/25 bg-black/10 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-white/80">Roles</p>
+                <p className="text-lg font-black">3</p>
+              </div>
+              <div className="rounded-lg border border-white/25 bg-black/10 p-2">
+                <p className="text-[10px] uppercase tracking-wide text-white/80">Coverage</p>
+                <p className="text-lg font-black">24/7</p>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-xl border border-white/35 bg-black/15 p-3 text-sm">
+              Already have an account? <Link href="/auth/sign-in" className="font-semibold text-amber-200">Sign in and continue your rescue workflow</Link>.
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/60 bg-white/85 shadow-[0_20px_60px_rgba(15,23,42,0.15)] backdrop-blur">
+          <CardContent className="p-6 md:p-8">
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-black text-slate-900">Create account</h2>
+              <span className="text-2xl">📝</span>
+            </div>
+            <p className="mt-2 text-sm text-slate-600">Use your name, email, and password to get started. You can switch between app modes after login.</p>
+
+            <Form {...form}>
+              <form className="mt-7 space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-slate-700 font-semibold flex items-center gap-2">
+                      <UserRound className="size-4 text-emerald-600" />
+                      Full Name
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="text"
+                        placeholder="Your full name"
+                        className="bg-slate-900 text-white placeholder:text-slate-400 border-slate-700 focus:border-emerald-500 focus:ring-emerald-500/20 h-10 px-4"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-slate-700 font-semibold flex items-center gap-2">
+                      <Mail className="size-4 text-emerald-600" />
+                      Email Address
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="email"
+                        placeholder="yourname@email.com"
+                        className="bg-slate-900 text-white placeholder:text-slate-400 border-slate-700 focus:border-emerald-500 focus:ring-emerald-500/20 h-10 px-4"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField control={form.control} name="password" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-slate-700 font-semibold flex items-center gap-2">
+                        <Lock className="size-4 text-emerald-600" />
+                        Password
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          placeholder="••••••••••"
+                          className="bg-slate-900 text-white placeholder:text-slate-400 border-slate-700 focus:border-emerald-500 focus:ring-emerald-500/20 h-10 px-4"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="confirmPassword" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-slate-700 font-semibold flex items-center gap-2">
+                        <Lock className="size-4 text-emerald-600" />
+                        Confirm Password
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          placeholder="••••••••••"
+                          className="bg-slate-900 text-white placeholder:text-slate-400 border-slate-700 focus:border-emerald-500 focus:ring-emerald-500/20 h-10 px-4"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+
+                {error ? (
+                  <Alert className="border-rose-200 bg-rose-50 text-rose-700 flex items-start gap-2">
+                    <OctagonAlertIcon className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <AlertTitle>{error}</AlertTitle>
+                  </Alert>
+                ) : null}
+
+                <Button disabled={pending} type="submit" className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 h-10 text-base">
+                  {pending ? "Creating account..." : "Create account"}
+                  {!pending ? <ArrowRight className="size-4" /> : null}
+                </Button>
+
+                <p className="text-center text-sm text-slate-600">
+                  Already have an account? <Link href="/auth/sign-in" className="font-semibold text-emerald-700 hover:text-emerald-800 underline">Sign in</Link>
+                </p>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

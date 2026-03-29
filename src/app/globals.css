@@ -45,6 +45,16 @@
 
 :root {
   --radius: 0.625rem;
+  --frp-primary-900: #0f3611;
+  --frp-primary-700: #2d5a27;
+  --frp-primary-500: #5f9662;
+  --frp-primary-300: #bdf2b3;
+  --frp-secondary-900: #5c2c00;
+  --frp-secondary-600: #f57c00;
+  --frp-secondary-300: #ffd4a3;
+  --frp-tertiary-900: #6b4b00;
+  --frp-tertiary-600: #ffb300;
+  --frp-tertiary-300: #ffe7a6;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -118,5 +128,331 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--frp-primary-500);
+    outline-offset: 2px;
+  }
+}
+
+.marker-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  width: 28px;
+  border-radius: 999px;
+  font-size: 14px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+
+.marker-donor {
+  background: #0369a1;
+  color: #f0f9ff;
+}
+
+.marker-recipient {
+  background: #047857;
+  color: #ecfdf5;
+}
+
+.marker-volunteer {
+  background: #ea580c;
+  color: #fff7ed;
+  animation: volunteer-pulse 1.4s ease-in-out infinite;
+}
+
+.dot-pulse {
+  height: 6px;
+  width: 6px;
+  border-radius: 999px;
+  background: #0f172a;
+  animation: dot-blink 0.8s ease-in-out infinite;
+}
+
+.feedo-crisis {
+  background: radial-gradient(circle at 0% 0%, #1f1f1f 0%, #0a0a0a 48%, #4a2102 100%);
+}
+
+@keyframes volunteer-pulse {
+  0%,
+  100% {
+    transform: translateY(0px);
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
+  }
+  50% {
+    transform: translateY(-3px);
+    box-shadow: 0 9px 16px rgba(234, 88, 12, 0.55);
+  }
+}
+
+@keyframes dot-blink {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.feedo-app {
+  background:
+    radial-gradient(65% 55% at 16% 0%, rgba(16, 185, 129, 0.08), transparent 68%),
+    radial-gradient(50% 40% at 86% 8%, rgba(34, 197, 94, 0.08), transparent 64%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.98));
+}
+
+.dark .feedo-app {
+  background:
+    radial-gradient(60% 55% at 20% 0%, rgba(16, 185, 129, 0.16), transparent 68%),
+    radial-gradient(55% 45% at 84% 8%, rgba(59, 130, 246, 0.14), transparent 65%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.98), rgba(3, 7, 20, 0.98));
+}
+
+.feedo-chrome {
+  min-height: 100vh;
+  position: relative;
+  overflow-x: clip;
+}
+
+.feedo-ambient {
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: 0;
+}
+
+.feedo-globe {
+  height: min(70vw, 580px);
+  left: -90px;
+  opacity: 0.55;
+  position: absolute;
+  top: 56px;
+  transform-origin: center;
+  width: min(70vw, 580px);
+  animation: feedo-globe-spin 72s linear infinite;
+}
+
+.feedo-food {
+  width: min(32vw, 240px);
+  height: min(32vw, 240px);
+  right: 4vw;
+  top: 98px;
+  position: absolute;
+  opacity: 0.74;
+  animation: feedo-float 9.8s ease-in-out infinite;
+}
+
+.feedo-orbit {
+  stroke: rgba(15, 118, 110, 0.23);
+  stroke-width: 2;
+}
+
+.feedo-orbit-muted {
+  stroke: rgba(14, 116, 144, 0.16);
+}
+
+.feedo-route {
+  stroke: rgba(37, 99, 235, 0.55);
+  stroke-dasharray: 10 8;
+  stroke-linecap: round;
+  stroke-width: 3;
+  animation: feedo-dash 16s linear infinite;
+}
+
+.feedo-route-muted {
+  stroke: rgba(20, 184, 166, 0.45);
+  stroke-width: 2.5;
+}
+
+.feedo-node {
+  fill: rgba(37, 99, 235, 0.88);
+  filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.45));
+  animation: feedo-node-pulse 1.9s ease-in-out infinite;
+}
+
+.feedo-node-alt {
+  fill: rgba(20, 184, 166, 0.8);
+}
+
+.feedo-food-ring {
+  stroke: rgba(15, 118, 110, 0.28);
+  stroke-width: 2;
+}
+
+.feedo-food-line {
+  stroke: rgba(22, 163, 74, 0.64);
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.feedo-food-line-soft {
+  stroke: rgba(6, 182, 212, 0.45);
+  stroke-width: 3;
+}
+
+.feedo-food-dot {
+  fill: rgba(34, 197, 94, 0.75);
+  animation: feedo-node-pulse 2.2s ease-in-out infinite;
+}
+
+.dark .feedo-orbit {
+  stroke: rgba(16, 185, 129, 0.3);
+}
+
+.dark .feedo-orbit-muted {
+  stroke: rgba(56, 189, 248, 0.2);
+}
+
+.dark .feedo-route {
+  stroke: rgba(56, 189, 248, 0.6);
+}
+
+.dark .feedo-route-muted {
+  stroke: rgba(45, 212, 191, 0.5);
+}
+
+.dark .feedo-food-ring {
+  stroke: rgba(16, 185, 129, 0.34);
+}
+
+.dark .feedo-food-line {
+  stroke: rgba(110, 231, 183, 0.72);
+}
+
+.dark .feedo-food-line-soft {
+  stroke: rgba(125, 211, 252, 0.56);
+}
+
+.feedo-page-transition {
+  position: relative;
+  z-index: 1;
+  animation: feedo-page-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dark .feedo-dashboard-content .bg-white {
+  background-color: rgba(15, 23, 42, 0.86);
+}
+
+.dark .feedo-dashboard-content .bg-slate-50 {
+  background-color: rgba(30, 41, 59, 0.66);
+}
+
+.dark .feedo-dashboard-content .bg-blue-50 {
+  background-color: rgba(15, 23, 42, 0.88);
+}
+
+.dark .feedo-dashboard-content .bg-rose-50 {
+  background-color: rgba(76, 5, 25, 0.2);
+}
+
+.dark .feedo-dashboard-content .border-slate-200 {
+  border-color: rgba(51, 65, 85, 0.95);
+}
+
+.dark .feedo-dashboard-content .text-slate-900 {
+  color: rgb(241, 245, 249);
+}
+
+.dark .feedo-dashboard-content .text-slate-700,
+.dark .feedo-dashboard-content .text-slate-600,
+.dark .feedo-dashboard-content .text-slate-500 {
+  color: rgb(148, 163, 184);
+}
+
+a,
+button {
+  transition: transform 180ms ease, box-shadow 200ms ease, background-color 220ms ease, color 220ms ease, border-color 220ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+@keyframes feedo-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes feedo-globe-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes feedo-dash {
+  from {
+    stroke-dashoffset: 140;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes feedo-node-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.22);
+  }
+}
+
+@keyframes feedo-float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(2deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .feedo-globe {
+    height: 72vw;
+    left: -130px;
+    opacity: 0.42;
+    top: 62px;
+    width: 72vw;
+  }
+
+  .feedo-food {
+    opacity: 0.56;
+    right: -16px;
+    top: 90px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feedo-globe,
+  .feedo-food,
+  .feedo-route,
+  .feedo-node,
+  .feedo-food-dot,
+  .feedo-page-transition,
+  button {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
   }
 }
