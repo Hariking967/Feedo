@@ -2850,30 +2850,6 @@ export default function LandingPage() {
                   Discover nearby surplus meals from homes and caterers, reserve
                   in seconds, and reduce food waste with every order.
                 </p>
-                <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700 md:text-sm">
-                  Consumer, Supplier, and Volunteer workflows are available
-                  after sign-in with dedicated tabs inside the main workspace.
-                </p>
-                <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-3 md:text-sm">
-                  <p className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                    <span className="font-semibold text-slate-900">
-                      Step 1:
-                    </span>{" "}
-                    Sign in or create account.
-                  </p>
-                  <p className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                    <span className="font-semibold text-slate-900">
-                      Step 2:
-                    </span>{" "}
-                    Choose Consumer, Supplier, or Volunteer tab.
-                  </p>
-                  <p className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                    <span className="font-semibold text-slate-900">
-                      Step 3:
-                    </span>{" "}
-                    Start rescue operations in real time.
-                  </p>
-                </div>
                 <div className="flex flex-wrap gap-3 pt-2">
                   <Button
                     className="gap-2"
@@ -3283,46 +3259,20 @@ export default function LandingPage() {
               ) : mode === "consumer" ? (
                 <div className="space-y-4">
                   {/* Section Header with Gradient Background */}
-                  <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-cyan-50 to-blue-50 p-6 shadow-sm">
-                    <div className="absolute right-0 top-0 -mr-20 -mt-20 h-40 w-40 rounded-full bg-cyan-200 opacity-10 blur-3xl" />
-                    <div className="absolute left-0 bottom-0 -ml-20 -mb-20 h-40 w-40 rounded-full bg-emerald-200 opacity-10 blur-3xl" />
-                    <div className="relative">
-                      <div className="mb-4 flex items-center gap-2">
-                        <span className="text-3xl">🛒</span>
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">
-                            Consumer Marketplace
-                          </p>
-                          <h2 className="text-xl font-black text-slate-900">
-                            Discover nearby surplus food
-                          </h2>
-                        </div>
-                      </div>
-                      <p className="max-w-2xl text-sm text-slate-600">
-                        Search by dish name, sort by distance or price, and
-                        filter by your preferences. Reserve now at unbeatable
-                        prices.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 shadow-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-cyan-50 to-blue-50 p-5 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">🛒</span>
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
-                          Smart Demand Feed
-                        </p>
-                        <p className="text-sm text-blue-900">
-                          Consumer feed is ranked by need fit, suitability,
-                          urgency, spoilage risk, and route feasibility. Crisis
-                          protection runs automatically.
-                        </p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Consumer Marketplace</p>
+                        <h2 className="text-xl font-black text-slate-900">Nearby surplus food</h2>
                       </div>
-                      <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 shadow-sm">
-                        <Sparkles className="size-3.5" /> Auto crisis watch
+                      <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+                        <Sparkles className="size-3.5" /> Ranked for you
                       </span>
                     </div>
                   </div>
+
+
 
                   <div className="rounded-2xl border border-cyan-200 bg-white p-4 shadow-sm">
                     {!isNeedPostingOpen ? (
@@ -3339,11 +3289,7 @@ export default function LandingPage() {
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
-                              Need Posting + Reverse Matching
-                            </p>
-                            <p className="text-sm text-slate-700">
-                              Post your need window and trigger targeted
-                              supplier prompts automatically.
+                              Post a Food Need
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -3786,50 +3732,25 @@ export default function LandingPage() {
                       </button>
                     </div>
 
-                    <div className="mt-3">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-700">
-                        <BarChart3 className="size-4" /> Supplier analytics
-                        moved to sidebar and full analytics dashboard.
-                      </div>
+
+                  </div>
+
+
+                  <div className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 min-w-[100px]">
+                      <p className="text-[11px] uppercase text-slate-500">Live listings</p>
+                      <p className="text-base font-bold text-slate-900">{supplierListings.length}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 min-w-[100px]">
+                      <p className="text-[11px] uppercase text-slate-500">Need prompts</p>
+                      <p className="text-base font-bold text-slate-900">{supplierNeedPrompts.length}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 min-w-[100px]">
+                      <p className="text-[11px] uppercase text-slate-500">Mode</p>
+                      <p className="text-base font-bold text-slate-900 capitalize">{supplierPublishMode}</p>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
-                      Supplier Workspace Focus
-                    </p>
-                    <p className="mt-1 text-sm text-slate-700">
-                      Main page now emphasizes publishing, emergency
-                      orchestration, and bulk handling. Analytics are
-                      consolidated in the sidebar and analytics page.
-                    </p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                        <p className="text-[11px] uppercase text-slate-500">
-                          Live listings
-                        </p>
-                        <p className="text-base font-bold text-slate-900">
-                          {supplierListings.length}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                        <p className="text-[11px] uppercase text-slate-500">
-                          Need prompts
-                        </p>
-                        <p className="text-base font-bold text-slate-900">
-                          {supplierNeedPrompts.length}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                        <p className="text-[11px] uppercase text-slate-500">
-                          Publish mode
-                        </p>
-                        <p className="text-base font-bold text-slate-900 capitalize">
-                          {supplierPublishMode}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
 
                   <div
                     className={`mb-4 rounded-xl border bg-white/70 backdrop-blur-sm p-4 ${
@@ -3911,13 +3832,7 @@ export default function LandingPage() {
                   <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
-                          Targeted Need Prompts
-                        </p>
-                        <p className="text-xs text-blue-900">
-                          Reverse matching nudges from nearby receivers needing
-                          food in specific windows.
-                        </p>
+                        <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Need Prompts</p>
                       </div>
                       <Button
                         variant="outline"

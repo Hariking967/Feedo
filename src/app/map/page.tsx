@@ -21,8 +21,7 @@ export default function SharedMapPage() {
       <PublicNavbar />
       <section className="mx-auto max-w-7xl space-y-4 px-4 py-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Shared Map and Routing</h1>
-          <p className="text-sm text-slate-600">Operational map with donor, recipient, volunteer, route, and crisis overlays.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Live Map</h1>
         </div>
 
         <div className="flex flex-wrap gap-2">

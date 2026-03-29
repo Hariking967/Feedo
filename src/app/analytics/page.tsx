@@ -253,13 +253,10 @@ export default function AnalyticsPage() {
       <PublicNavbar />
       <section className="mx-auto max-w-7xl space-y-4 px-4 py-8">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Unified Intelligence</p>
-          <h1 className="text-2xl font-bold text-slate-900">Impact Analytics</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Dedicated analytics surface with cross-role performance, routing efficiency, and risk pressure in one place.
-          </p>
-          <p className="mt-2 text-xs text-slate-500">
-            {isLoading ? "Refreshing data..." : `Last synced with live APIs. Timeline events loaded: ${timeline.length}.`}
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Feedo Analytics</p>
+          <h1 className="text-2xl font-bold text-slate-900">Impact Overview</h1>
+          <p className="mt-1 text-xs text-slate-400">
+            {isLoading ? "Refreshing..." : `${timeline.length} lifecycle events loaded`}
           </p>
         </div>
 

@@ -1931,16 +1931,7 @@ export function RoleDashboard({ role }: { role: DashboardRole }) {
         liveStatus="Donation feed live"
       >
         <div className="space-y-4" id="donations">
-          <InstructionCallout
-            title="Donor Workflow"
-            description="This screen helps you post food safely and track the rescue lifecycle."
-            tone="primary"
-            points={[
-              "Fill the donation form with expiry and safety details.",
-              "Use map pin or address resolver to set pickup location.",
-              "Submit and monitor status cards below to see matching progress.",
-            ]}
-          />
+
 
           <section
             className={`rounded-xl border px-4 py-3 ${crisisModeEnabled ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-slate-50"}`}
@@ -1961,16 +1952,7 @@ export function RoleDashboard({ role }: { role: DashboardRole }) {
             </ul>
           </section>
 
-          <section className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-              Proactive Reverse Matching
-            </p>
-            <p className="text-sm text-blue-900">
-              Supplier prompt feed is active. Nearby receiver advance-needs are
-              scored and surfaced below in the &quot;Receiver Need Prompts&quot;
-              panel.
-            </p>
-          </section>
+
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
@@ -2318,38 +2300,18 @@ export function RoleDashboard({ role }: { role: DashboardRole }) {
         title="Recipient / NGO Dashboard"
         liveStatus="Smart feed + reverse matching active"
       >
-        <InstructionCallout
-          title="Recipient Workflow"
-          description="Plan needs, prioritize favorites, reserve available donations, and place pickup requests."
-          tone="secondary"
-          points={[
-            "Keep a wanted-items list for recurring food needs.",
-            "Favorite trusted offers so they appear first in the feed.",
-            "Reserve units to cart and place multi-order pickup requests.",
-          ]}
-        />
 
-        <CrisisBanner
-          active={crisisModeEnabled || Boolean(nearbyCrisis?.active)}
-          message={
-            crisisModeEnabled
-              ? `Manual crisis mode is active. Ranking is survival-first and acceptance radius is expanded to ${effectiveAcceptanceRangeKm} km.`
-              : nearbyCrisis?.active
-                ? `Regional crisis signal detected (${nearbyCrisis.severity}). Matching and routing are being weighted for urgent deliveries.`
-                : ""
-          }
-        />
+        {(crisisModeEnabled || Boolean(nearbyCrisis?.active)) && (
+          <CrisisBanner
+            active
+            message={
+              crisisModeEnabled
+                ? `Crisis mode active — acceptance radius expanded to ${effectiveAcceptanceRangeKm} km.`
+                : `Crisis signal: ${nearbyCrisis?.severity}. Urgent routing active.`
+            }
+          />
+        )}
 
-        <section className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-            Receiver-Centric Intelligence
-          </p>
-          <p className="text-sm text-blue-900">
-            Ranked feed uses need fit, category suitability, spoilage risk,
-            urgency window, and route travel feasibility. Advance need posting
-            triggers proactive supplier nudges.
-          </p>
-        </section>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <StatCard
@@ -3449,16 +3411,7 @@ export function RoleDashboard({ role }: { role: DashboardRole }) {
       title="Admin / Operations Dashboard"
       liveStatus="System live"
     >
-      <InstructionCallout
-        title="Admin Workflow"
-        description="Use this control view to prioritize urgent donations, monitor team capacity, and intervene when needed."
-        tone="secondary"
-        points={[
-          "Monitor crisis and urgent-case cards first.",
-          "Use admin action buttons to reassign and escalate.",
-          "Track feed/map to validate that interventions are working.",
-        ]}
-      />
+
 
       <CrisisBanner
         active

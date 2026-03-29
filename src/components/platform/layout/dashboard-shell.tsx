@@ -466,9 +466,6 @@ export function DashboardShell({ basePath, title, liveStatus = "Live sync active
             </div>
           </div>
 
-          <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
-            Use the role analytics button for analytics and check the role history panel for recent actions.
-          </div>
           <div className="feedo-dashboard-content">
             {children}
           </div>
