@@ -1,5 +1,5 @@
 # Feedo Platform
-
+Video explanation: https://drive.google.com/drive/folders/1db8xi-5-cXMbkIXQlpUOjUvOCEV5mlTM?usp=drive_link
 Feedo is a multi-role food rescue platform built with Next.js App Router. It provides donor, recipient, volunteer, and admin dashboards with live maps, crisis overlays, routing, notifications, and operational analytics.
 
 ## Stack
