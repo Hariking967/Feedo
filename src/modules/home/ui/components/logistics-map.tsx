@@ -18,25 +18,25 @@ import type {
   VolunteerNode,
 } from "../../types/logistics";
 
-const donorIcon = L.icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconAnchor: [13, 41],
-  popupAnchor: [0, -35],
+const donorIcon = L.divIcon({
+  html: '<div class="marker-badge marker-donor">🏠</div>',
+  className: "",
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
 });
 
-const recipientIcon = L.icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconAnchor: [13, 41],
-  popupAnchor: [0, -35],
+const recipientIcon = L.divIcon({
+  html: '<div class="marker-badge marker-recipient">❤</div>',
+  className: "",
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
 });
 
-const volunteerIcon = L.icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconAnchor: [13, 41],
-  popupAnchor: [0, -35],
+const volunteerIcon = L.divIcon({
+  html: '<div class="marker-badge marker-volunteer">➤</div>',
+  className: "",
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
 });
 
 interface Props {

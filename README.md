@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Feedo Platform
 
-## Getting Started
+Feedo is a multi-role food rescue platform built with Next.js App Router. It provides donor, recipient, volunteer, and admin dashboards with live maps, crisis overlays, routing, notifications, and operational analytics.
 
-First, run the development server:
+## Stack
+
+- Next.js + React + TypeScript
+- Tailwind CSS + component primitives
+- Leaflet / react-leaflet for map UI
+- Supabase (optional) for realtime and token persistence
+- OpenRouteService + OSRM fallback for routing
+- Nominatim for geocoding and reverse geocoding
+- NASA EONET + OpenWeather for crisis signal aggregation
+- Open Food Facts for product barcode lookup
+- Firebase Cloud Messaging for web push token registration
+
+## Quick Start
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Configure required environment variables for your local setup.
+
+3. Start development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Main API Capabilities
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `GET /api/geo/search` - address geocoding
+- `GET /api/geo/reverse` - reverse geocoding
+- `GET /api/routing/directions` - ORS or OSRM route
+- `POST /api/routing/matrix` - ORS matrix
+- `POST /api/routing/optimize` - ORS optimization
+- `GET /api/crisis/signals` - EONET + weather synthesis
+- `GET /api/food/barcode/[code]` - Open Food Facts lookup
+- `POST /api/food/emergency` - create high-priority emergency donation flow
+- `POST /api/food/bulk` - create bulk donation flow
+- `GET /api/receiver/feed` - ranked receiver donation feed
+- `POST /api/receiver/preferences` - receiver/NGO matching preferences
+- `GET /api/receiver/needs` - receiver advance-need history/status
+- `POST /api/receiver/needs` - create advance receiver need
+- `GET /api/supplier/need-prompts` - targeted supplier prompts
+- `GET /api/supplier/analytics` - supplier impact analytics
+- `POST /api/supplier/proof` - delivery/proof workflow
+- `POST /api/notifications/register-token` - stores FCM push token
+- `GET /api/payment-profile` - reads current supplier payment profile
+- `POST /api/payment-profile` - upserts authenticated supplier QR/payment profile
 
-## Learn More
+## Dashboard Routes
 
-To learn more about Next.js, take a look at the following resources:
+- `/dashboard/donor`
+- `/dashboard/recipient`
+- `/dashboard/volunteer`
+- `/dashboard/admin`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- The platform supports local development and production deployment with the same core routes.
+- Map, routing, crisis, and analytics capabilities are available based on your configured integrations.

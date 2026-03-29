@@ -1,0 +1,189 @@
+Feedo Future Implementation Notes
+Last updated: 2026-03-29
+Purpose: Track functionality gaps that are intentionally deferred because full cross-role or live infra testing is not available yet.
+How to use in each prompt:
+- Add a new item under "Open Items" for anything not fully implemented/tested.
+- Move item to "Completed Later" once done.
+- Keep input/output contracts clear so future implementation is faster.
+
+Open Items
+==========
+
+[FI-001] Cross-role lifecycle event ledger (Supplier <-> NGO/Receiver <-> Volunteer)
+Status: Implemented (needs staged validation)
+Why deferred:
+- End-to-end actor journey cannot be fully validated right now in a shared live environment.
+Current gap:
+- We have listing/emergency/bulk/proof flows, but no single event ledger for every role action on the same listing/event timeline.
+Future implementation:
+- Add table: listing_lifecycle_event
+- Write events from all role APIs (supplier create/update, volunteer accept/pickup/dropoff, receiver confirm, NGO intake/close, system auto-expire).
+- Add read endpoint for supplier timeline and role-filtered activity.
+Planned input contract:
+- eventId: string
+- listingId: string | null
+- donationEventId: string | null
+- supplierUserId: string
+- actorUserId: string
+- actorRole: supplier|volunteer|receiver|ngo|recipient|system
+- eventType: listing_created|emergency_triggered|volunteer_assigned|picked_up|delivered|confirmed|expired|cancelled|proof_uploaded|allocation_split|allocation_completed
+- statusAfter: string | null
+- payload: json
+- occurredAt: timestamp
+Planned output contract:
+- timeline[] sorted desc with actor, role, eventType, statusAfter, payload, occurredAt
+
+[FI-002] Real-time live event propagation for cross-role state changes
+Status: Pending
+Why deferred:
+- No reliable multi-client real-time session test was run for all roles.
+Current gap:
+- Role actions update DB state but there is no guaranteed shared subscription channel for supplier/ngo/volunteer/receiver views.
+Future implementation:
+- Add Supabase Realtime channel per listing/event (for example: listing:<id>, event:<id>).
+- Publish lifecycle events and status updates to channels.
+- Add client subscribe/unsubscribe in role dashboards.
+Planned input contract:
+- channelKey: string
+- eventName: string
+- payload: { listingId?, donationEventId?, actorRole, eventType, statusAfter?, metrics? }
+Planned output contract:
+- role dashboards receive same event packet with acknowledged update timestamp.
+
+[FI-003] Receiver/NGO acknowledgement and handover confirmation protocol
+Status: Pending
+Why deferred:
+- Handshake flow between volunteer and receiver/NGO is not fully validated with role-based auth paths.
+Current gap:
+- Delivery/proof exists, but explicit two-step acknowledgement with conflict handling is missing.
+Future implementation:
+- Add confirmation states: pickup_confirmed_by_volunteer, intake_confirmed_by_receiver_or_ngo, dispute_open.
+- Add endpoint protections so only expected role can submit each state transition.
+- Add timeout/escalation for missing counterpart confirmation.
+Planned input contract:
+- listingId
+- actorUserId
+- actorRole
+- action: confirm_pickup|confirm_intake|raise_dispute
+- note?: string
+- proofRef?: string
+Planned output contract:
+- updatedStatus
+- counterpartPending: boolean
+- auditEventId
+- nextAction
+
+[FI-004] Capacity-aware NGO allocation feedback loop
+Status: Pending
+Why deferred:
+- Capacity and open/closed state from NGO/receiver side were not tested with live dynamic updates under load.
+Current gap:
+- Allocation chooses feasible candidates, but dynamic rebalancing from changing NGO/receiver capacity is limited.
+Future implementation:
+- Add periodic rebalance pass and event-driven reallocation triggers.
+- Persist capacity snapshots per allocation decision.
+Planned input contract:
+- donationEventId
+- latestCapacityByReceiver: [{ receiverId, capacity, active }]
+- strategy: single_receiver_full|split_multi_receiver|split_partial_capacity
+Planned output contract:
+- allocationDelta[]
+- unallocatedQuantity
+- escalationRequired
+
+[FI-005] Contract-level integration tests for role IO
+Status: Pending
+Why deferred:
+- Complete role-auth test data and live service keys are not fully available in this environment.
+Current gap:
+- We validated compile/lint/DB push and route-level logic, but not complete contract-level journey across all actors.
+Future implementation:
+- Add test matrix for Supplier/Volunteer/Receiver/NGO actions with mocked auth and transport.
+- Add golden response snapshots for event and status transitions.
+Planned input/output to verify:
+- Request/response schemas for listing, emergency dispatch, bulk allocation, proof upload, confirmation actions, timeline feed.
+
+[FI-006] Volunteer-side emergency workflow completeness
+Status: Implemented (needs staged validation)
+Why deferred:
+- Volunteer-side live acceptance and status transitions were not fully validated with real multi-user sessions.
+Current gap:
+- Supplier emergency creation is implemented, but volunteer emergency queue handling and transition confirmation path need explicit end-to-end validation.
+Future implementation:
+- Add/verify volunteer emergency queue endpoint (new + assigned + expiring soon).
+- Add volunteer action endpoints for accept/reject, en-route, picked-up, delivered, and unable-to-complete.
+- Mirror each action to lifecycle event log and realtime channels.
+Planned input contract:
+- listingId
+- volunteerUserId
+- action: accept|reject|mark_en_route|mark_picked_up|mark_delivered|mark_unable
+- location?: { lat: number, lng: number }
+- note?: string
+- etaMinutes?: number
+Planned output contract:
+- listingStatus
+- priorityState
+- assignedVolunteerId
+- responseWindowRemainingMinutes
+- emittedEvent: { eventType, occurredAt }
+
+[FI-007] NGO/Receiver visibility of supplier spoilage risk
+Status: Pending
+Why deferred:
+- Full live multi-user validation (receiver + supplier + volunteer with realtime updates) is not complete yet.
+Current gap:
+- Ranked receiver feed now surfaces spoilage and route-feasibility details, but end-to-end behavior still needs staged environment verification.
+Future implementation:
+- Add NGO/receiver listing feed endpoint returning spoilage fields for assigned/eligible listings.
+- Update NGO cards/detail view to show score, label, pickup window, and risk reasons.
+- Add color-coded urgency mapping for operational decision support.
+Planned input contract:
+- roleUserId
+- role: receiver|ngo|recipient
+- listingFilter: all|assigned|nearby|urgent
+- location?: { lat: number, lng: number }
+Planned output contract:
+- listings[] with { listingId, foodName, quantity, spoilageScore, spoilageLabel, recommendedPickupWindowMinutes, priorityState, assignedVolunteerId, assignedReceiverId }
+- summary: { urgentCount, expiringSoonCount }
+
+Completed Later
+===============
+- [Done] Cross-role lifecycle event ledger (FI-001)
+	- Added shared lifecycle writer utility `src/lib/lifecycle-events.ts`.
+	- Added timeline read API `GET /api/lifecycle` with listing/event/actorRole filters.
+	- Added lifecycle writes in supplier listing, emergency trigger, bulk allocation, and volunteer workflow routes.
+	- Event table target: `listing_lifecycle_event` (Supabase-backed, graceful no-op fallback if missing).
+- [Done] Volunteer emergency queue + action workflow (FI-006)
+	- Added `GET /api/volunteer/emergency-queue` for unassigned/assigned/expiring emergency tasks.
+	- Added `POST /api/volunteer/emergency-action` for accept/reject/en-route/picked-up/delivered/unable transitions.
+	- Each action updates listing state and emits lifecycle events for audit traceability.
+- [Done] Proactive receiver-need to supplier-prompt loop
+	- Added `POST/GET /api/receiver/needs` for advance need posting and history.
+	- Added `GET /api/supplier/need-prompts` for supplier-side targeted prompt visibility.
+	- Added Supabase tables `receiver_need_request` and `supplier_need_prompt`.
+	- Added recipient dashboard need-posting panel and supplier/donor prompt panel for visible frontend behavior.
+- [Done] Crisis-aware priority receiving
+	- Added crisis signal detection in `GET /api/receiver/feed` using OpenWeather + optional manual `crisis_zone` checks.
+	- Added survival-first ranking mode during crisis emphasizing fastest safe route and highest urgency.
+	- Added consumer UI crisis banner and urgent redistribution state in active `src/app/page.tsx` flow.
+	- Extended `POST /api/receiver/needs` to broaden supplier targeting and dispatch crisis nearby alerts via Firebase/outbox.
+- [Done] Live inbound tracking with suitability warnings
+	- Added `GET /api/receiver/inbound-tracking` for stage, ETA, assigned volunteer, route delay and suitability warning snapshots.
+	- Added major stage change push dispatch (`pickup_confirmed`, `en_route`, `nearing_arrival`, `delayed`) via Firebase/outbox fallback.
+	- Added consumer tracking UI block showing inbound stage, pickup status, volunteer assignment, and spoilage-risk warnings.
+
+Prompt Log
+==========
+2026-03-29
+- User requested persistent note tracking for deferred NGO/Supplier/Volunteer internal connections and future IO implementation details.
+- Action taken: created this file and initialized deferred-functionalities registry.
+- User asked whether volunteer-side emergency functionality is included.
+- Action taken: confirmed existing coverage and added FI-006 for explicit volunteer emergency workflow tracking.
+- User asked whether spoilage is shown to NGO side.
+- Action taken: verified current UI behavior and added FI-007 for explicit NGO spoilage visibility implementation.
+- User requested an intelligent receiver-centric ranked feed driven by need, suitability, spoilage, urgency, and route feasibility.
+- Action taken: implemented `/api/receiver/feed` ranking service, `/api/receiver/preferences` profile persistence, Supabase receiver preference schema fields, and recipient dashboard ranked feed wiring with score breakdown.
+- User requested proactive reverse matching so receivers can post future needs and likely suppliers are nudged, with explicit supplier-tab frontend visibility.
+- Action taken: implemented receiver need posting/history API, supplier prompt feed API, Supabase request/prompt tables, and dashboard UI sections for recipient posting + donor prompt visibility.
+- User requested crisis-aware receiving mode and live inbound tracking with suitability warnings in active flow.
+- Action taken: implemented crisis-aware receiver feed ranking + crisis notification extensions in need posting, added inbound tracking API with stage/suitability outputs, and wired consumer UI crisis + inbound status cards in active `src/app/page.tsx`.
